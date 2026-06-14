@@ -1,0 +1,7 @@
+# Тяжёлые зависимости только для оффлайн-оценки качества (scripts/eval.py).
+# Не входят в продакшен-образ.
+-r requirements.txt
+ragas
+datasets
+langchain-community
+langchain-openai

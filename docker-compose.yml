@@ -1,0 +1,56 @@
+services:
+  api:
+    build: .
+    image: rag-api:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Внутри compose-сети обращаемся к сервисам по их именам.
+      QDRANT_URL: http://qdrant:6333
+    ports:
+      - "8000:8000"
+    depends_on:
+      qdrant:
+        condition: service_started
+    networks:
+      - rag
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    # Порт наружу можно не публиковать в проде — доступ только из сети compose.
+    expose:
+      - "6333"
+    networks:
+      - rag
+
+  # Опциональный self-hosted LLM. Запуск: docker compose --profile local-llm up -d
+  # Для облачного провайдера профиль не включаем и задаём LLM_BASE_URL в .env.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["local-llm"]
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    expose:
+      - "11434"
+    networks:
+      - rag
+    # Раскомментируйте для GPU-хоста (нужен nvidia-container-toolkit):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  qdrant_data:
+  ollama_data:
+
+networks:
+  rag:
+    driver: bridge

@@ -1,0 +1,17 @@
+# --- API ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+
+# --- LLM / Vector / Storage ---
+openai==1.109.1
+qdrant-client==1.18.0
+supabase==2.31.0
+
+# --- Observability ---
+langfuse==4.7.1
+
+# --- Indexing utils ---
+PyMuPDF==1.25.1
+httpx==0.28.1
+python-dotenv==1.2.2
