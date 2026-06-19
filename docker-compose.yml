@@ -20,7 +20,6 @@ services:
     restart: unless-stopped
     volumes:
       - qdrant_data:/qdrant/storage
-    # Порт наружу можно не публиковать в проде — доступ только из сети compose.
     expose:
       - "6333"
     networks:

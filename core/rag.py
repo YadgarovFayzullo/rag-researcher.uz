@@ -1,3 +1,5 @@
+from qdrant_client.models import FieldCondition, Filter, MatchValue
+
 from core.clients import get_embedding, get_qdrant
 from core.config import settings
 
@@ -11,7 +13,7 @@ def _chat_client():
     if settings.LANGFUSE_ENABLED and settings.LANGFUSE_SECRET_KEY:
         try:
             from langfuse.openai import OpenAI as TracedOpenAI
-        
+
             return TracedOpenAI(
                 base_url=settings.LLM_BASE_URL, api_key=settings.LLM_API_KEY
             )
@@ -22,29 +24,49 @@ def _chat_client():
     return get_llm_client()
 
 
-def search_chunks(query: str, limit: int | None = None, section: str | None = None):
-    vector = get_embedding(query)
+def _build_filter(
+    tenant_id: str,
+    section: str | None = None,
+    is_reference: bool | None = None,
+) -> Filter:
+    """Жёсткая изоляция арендатора: tenant_id обязателен в каждом поиске.
 
-    search_filter = None
+    is_reference=None — без фильтра (свои + референс); True/False — только
+    референс / только свой канал (для квотированного retrieval).
+    """
+    must = [FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id))]
     if section:
-        from qdrant_client.models import FieldCondition, Filter, MatchValue
-
-        search_filter = Filter(
-            must=[FieldCondition(key="section", match=MatchValue(value=section))]
+        must.append(FieldCondition(key="section", match=MatchValue(value=section)))
+    if is_reference is not None:
+        must.append(
+            FieldCondition(key="is_reference", match=MatchValue(value=is_reference))
         )
+    return Filter(must=must)
+
+
+def search_chunks(
+    query: str,
+    tenant_id: str,
+    limit: int | None = None,
+    section: str | None = None,
+    is_reference: bool | None = None,
+):
+    vector = get_embedding(query)
 
     results = get_qdrant().query_points(
         collection_name=settings.QDRANT_COLLECTION,
         query=vector,
         limit=limit or settings.SEARCH_LIMIT,
         score_threshold=settings.SCORE_THRESHOLD,
-        query_filter=search_filter,
+        query_filter=_build_filter(tenant_id, section, is_reference),
     ).points
     return results
 
 
-def ask(question: str, limit: int | None = None) -> tuple[str, list[str]]:
-    chunks = search_chunks(question, limit=limit)
+def ask(
+    question: str, tenant_id: str, limit: int | None = None
+) -> tuple[str, list[str]]:
+    chunks = search_chunks(question, tenant_id, limit=limit)
     context = [c.payload["content"] for c in chunks]
     sources = [c.payload.get("title") for c in chunks]
     context_str = "\n\n".join(context)

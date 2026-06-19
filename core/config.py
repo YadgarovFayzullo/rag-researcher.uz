@@ -43,6 +43,11 @@ class Settings:
     API_HOST: str = _get("API_HOST", "0.0.0.0")
     API_PORT: int = int(_get("API_PORT", "8000"))
 
+    # CORS: список origin'ов через запятую, либо "*" для всех.
+    CORS_ORIGINS: list[str] = [
+        o.strip() for o in (_get("CORS_ORIGINS", "*") or "*").split(",") if o.strip()
+    ]
+
 
 @lru_cache
 def get_settings() -> Settings:
