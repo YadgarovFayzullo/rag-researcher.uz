@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from core.clients import get_qdrant
+from core.clients import get_embedding, get_qdrant
 from core.config import settings
 from core.ingest import delete_tenant, index_posts
 from core.rag import ask, search_chunks
@@ -113,6 +113,25 @@ def delete_endpoint(req: DeleteRequest):
     try:
         delete_tenant(req.tenant_id)
         return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class EmbedRequest(BaseModel):
+    texts: list[str] = Field(..., min_length=1)
+
+
+class EmbedResponse(BaseModel):
+    vectors: list[list[float]]
+
+
+@app.post("/embed", response_model=EmbedResponse)
+def embed_endpoint(req: EmbedRequest):
+    """Возвращает эмбеддинги для списка текстов. Нужен content-ai для семантической
+    кластеризации/дедупа новостей (он сам считает косинусы). Тонкая обёртка над
+    get_embedding — той же моделью, что и индексация, поэтому векторы сопоставимы."""
+    try:
+        return EmbedResponse(vectors=[get_embedding(t) for t in req.texts])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
