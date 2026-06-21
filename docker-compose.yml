@@ -7,13 +7,18 @@ services:
     environment:
       # Внутри compose-сети обращаемся к сервисам по их именам.
       QDRANT_URL: http://qdrant:6333
-    ports:
-      - "8000:8000"
+    # Internal-only: НЕ публикуем 8000 наружу. До API ходят только сервисы,
+    # состоящие в content_ai_net (admin-api / bot) — по алиасу `rag-api:8000`.
+    expose:
+      - "8000"
     depends_on:
       qdrant:
         condition: service_started
     networks:
-      - rag
+      rag: {}
+      content_ai_net:
+        aliases:
+          - rag-api
 
   qdrant:
     image: qdrant/qdrant:v1.12.4
@@ -53,3 +58,8 @@ volumes:
 networks:
   rag:
     driver: bridge
+  # Общая внешняя сеть с content-ai (admin-api / bot). Создаётся один раз:
+  #   docker network create content_ai_net
+  content_ai_net:
+    external: true
+    name: content_ai_net
